@@ -1,478 +1,769 @@
-import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Calculator, Info, Plus, Trash2 } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warfarin Dosing Calculator - Clinical Decision Support</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-const WarfarinDosingCalculator = () => {
-  const [entries, setEntries] = useState([
-    { id: 1, inr: '', dose: '', date: '' },
-    { id: 2, inr: '', dose: '', date: '' },
-    { id: 3, inr: '', dose: '', date: '' }
-  ]);
-  const [targetINR, setTargetINR] = useState({ min: 2.0, max: 3.0 });
-  const [results, setResults] = useState(null);
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #374151;
+            background-color: #f9fafb;
+        }
 
-  // Warfarin tablet sizes available
-  const tabletSizes = [1, 2, 2.5, 3, 4, 5, 6, 7.5, 10];
+        .container {
+            max-width: 1024px;
+            margin: 0 auto;
+            padding: 1.5rem;
+            background-color: white;
+            min-height: 100vh;
+        }
 
-  const addEntry = () => {
-    if (entries.length < 10) {
-      setEntries([...entries, { 
-        id: entries.length + 1, 
-        inr: '', 
-        dose: '', 
-        date: '' 
-      }]);
-    }
-  };
+        .header {
+            margin-bottom: 1.5rem;
+        }
 
-  const removeEntry = (id) => {
-    if (entries.length > 3) {
-      setEntries(entries.filter(entry => entry.id !== id));
-    }
-  };
+        .title {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
 
-  const updateEntry = (id, field, value) => {
-    setEntries(entries.map(entry => 
-      entry.id === id ? { ...entry, [field]: value } : entry
-    ));
-  };
+        .subtitle {
+            color: #6b7280;
+        }
 
-  const calculateTabletCombination = (weeklyDose) => {
-    const dailyDose = weeklyDose / 7;
-    
-    // Find the best combination of tablets
-    const findBestCombination = (targetDose) => {
-      let bestCombination = [];
-      let bestError = Infinity;
-      
-      // Try all combinations up to 3 tablets per day
-      for (let i = 0; i < tabletSizes.length; i++) {
-        for (let j = i; j < tabletSizes.length; j++) {
-          for (let k = j; k < tabletSizes.length; k++) {
-            const combinations = [
-              [tabletSizes[i]],
-              [tabletSizes[j]],
-              [tabletSizes[k]],
-              [tabletSizes[i], tabletSizes[j]],
-              [tabletSizes[i], tabletSizes[k]],
-              [tabletSizes[j], tabletSizes[k]],
-              [tabletSizes[i], tabletSizes[j], tabletSizes[k]]
-            ];
+        .section {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .blue-section {
+            background-color: #eff6ff;
+        }
+
+        .target-inr {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.25rem;
+        }
+
+        .input {
+            width: 5rem;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .entry-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+            padding: 0.75rem;
+            background-color: #f9fafb;
+            border-radius: 0.5rem;
+        }
+
+        .entry-input {
+            flex: 1;
+        }
+
+        .wide-input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+        }
+
+        .wide-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+
+        .btn-success {
+            background-color: #059669;
+            color: white;
+            font-size: 1rem;
+            padding: 0.75rem 1.5rem;
+        }
+
+        .btn-success:hover {
+            background-color: #047857;
+        }
+
+        .btn-danger {
+            background-color: transparent;
+            color: #dc2626;
+            padding: 0.5rem;
+        }
+
+        .btn-danger:hover {
+            color: #991b1b;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+        }
+
+        .alert-error {
+            background-color: #fef2f2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+        }
+
+        .alert-warning {
+            background-color: #fffbeb;
+            border: 1px solid #fcd34d;
+            color: #92400e;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .alert-danger {
+            background-color: #fef2f2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .recommendation {
+            padding: 1.5rem;
+            background-color: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .recommendation-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #14532d;
+            margin-bottom: 0.5rem;
+        }
+
+        .recommendation-text {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #166534;
+            margin-bottom: 0.5rem;
+        }
+
+        .recommendation-rationale {
+            color: #16a34a;
+        }
+
+        .details-section {
+            padding: 1.5rem;
+            background-color: #f9fafb;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .details-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .tablet-section {
+            padding: 1.5rem;
+            background-color: #eff6ff;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .methodology-section {
+            padding: 1.5rem;
+            background-color: #f3f4f6;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .methodology-content {
+            font-size: 0.875rem;
+            color: #374151;
+            line-height: 1.5;
+        }
+
+        .methodology-list {
+            list-style-type: disc;
+            margin-left: 1.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .methodology-list li {
+            margin-bottom: 0.25rem;
+        }
+
+        .disclaimer {
+            margin-top: 2rem;
+            padding: 1rem;
+            background-color: #fffbeb;
+            border: 1px solid #fcd34d;
+            border-radius: 0.5rem;
+        }
+
+        .disclaimer-text {
+            font-size: 0.875rem;
+            color: #92400e;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            fill: currentColor;
+        }
+
+        .small-text {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-left: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .details-grid {
+                grid-template-columns: 1fr;
+            }
             
-            combinations.forEach(combo => {
-              const comboSum = combo.reduce((sum, size) => sum + size, 0);
-              const error = Math.abs(comboSum - targetDose);
-              
-              if (error < bestError) {
-                bestError = error;
-                bestCombination = combo;
-              }
-            });
-          }
+            .target-inr {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .entry-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
         }
-      }
-      
-      return bestCombination;
-    };
-
-    const combination = findBestCombination(dailyDose);
-    const actualDailyDose = combination.reduce((sum, size) => sum + size, 0);
-    const actualWeeklyDose = actualDailyDose * 7;
-    
-    return {
-      dailyDose: actualDailyDose,
-      weeklyDose: actualWeeklyDose,
-      tablets: combination,
-      error: Math.abs(actualWeeklyDose - weeklyDose)
-    };
-  };
-
-  const calculateDoseRecommendation = () => {
-    const validEntries = entries.filter(entry => 
-      entry.inr && entry.dose && !isNaN(parseFloat(entry.inr)) && !isNaN(parseFloat(entry.dose))
-    );
-
-    if (validEntries.length < 3) {
-      setResults({ error: 'Please enter at least 3 INR values and corresponding doses.' });
-      return;
-    }
-
-    // Sort entries by date or order
-    const sortedEntries = validEntries.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
-    
-    // Get the most recent INR and dose
-    const mostRecentINR = parseFloat(sortedEntries[sortedEntries.length - 1].inr);
-    const currentWeeklyDose = parseFloat(sortedEntries[sortedEntries.length - 1].dose);
-    
-    // Calculate weighted average of recent INRs (more weight to recent values)
-    let weightedSum = 0;
-    let weightSum = 0;
-    
-    sortedEntries.forEach((entry, index) => {
-      const weight = index + 1; // More recent entries get higher weight
-      weightedSum += parseFloat(entry.inr) * weight;
-      weightSum += weight;
-    });
-    
-    const avgINR = weightedSum / weightSum;
-    
-    // Determine dose adjustment based on ASH guidelines and clinical practice
-    let adjustmentFactor = 1.0;
-    let recommendation = '';
-    let rationale = '';
-    
-    const targetMid = (targetINR.min + targetINR.max) / 2;
-    
-    if (mostRecentINR < targetINR.min) {
-      if (mostRecentINR < 1.5) {
-        adjustmentFactor = 1.20; // Increase by 20% for very low INR
-        recommendation = 'INCREASE dose by 20%';
-        rationale = 'INR significantly below target range (<1.5)';
-      } else {
-        adjustmentFactor = 1.10; // Increase by 10% for low INR
-        recommendation = 'INCREASE dose by 10%';
-        rationale = 'INR below target range';
-      }
-    } else if (mostRecentINR > targetINR.max) {
-      if (mostRecentINR > 4.0) {
-        adjustmentFactor = 0.75; // Decrease by 25% for high INR
-        recommendation = 'DECREASE dose by 25%';
-        rationale = 'INR significantly above target range (>4.0)';
-      } else {
-        adjustmentFactor = 0.90; // Decrease by 10% for slightly high INR
-        recommendation = 'DECREASE dose by 10%';
-        rationale = 'INR above target range';
-      }
-    } else {
-      // INR is within target range
-      const stability = calculateStability(sortedEntries);
-      if (stability.isStable) {
-        adjustmentFactor = 1.0;
-        recommendation = 'MAINTAIN current dose';
-        rationale = 'INR within target range and stable';
-      } else {
-        // Fine-tune based on position within range
-        if (mostRecentINR < targetMid) {
-          adjustmentFactor = 1.05; // Small increase
-          recommendation = 'INCREASE dose by 5%';
-          rationale = 'INR in target range but trending low';
-        } else {
-          adjustmentFactor = 0.95; // Small decrease
-          recommendation = 'DECREASE dose by 5%';
-          rationale = 'INR in target range but trending high';
-        }
-      }
-    }
-    
-    const newWeeklyDose = currentWeeklyDose * adjustmentFactor;
-    const tabletBreakdown = calculateTabletCombination(newWeeklyDose);
-    
-    setResults({
-      currentINR: mostRecentINR,
-      avgINR: avgINR,
-      currentWeeklyDose: currentWeeklyDose,
-      recommendedWeeklyDose: newWeeklyDose,
-      adjustmentFactor: adjustmentFactor,
-      recommendation: recommendation,
-      rationale: rationale,
-      tabletBreakdown: tabletBreakdown,
-      stability: calculateStability(sortedEntries),
-      safetyWarnings: generateSafetyWarnings(mostRecentINR, avgINR, sortedEntries)
-    });
-  };
-
-  const calculateStability = (entries) => {
-    if (entries.length < 3) return { isStable: false, coefficient: null };
-    
-    const inrValues = entries.map(entry => parseFloat(entry.inr));
-    const mean = inrValues.reduce((sum, val) => sum + val, 0) / inrValues.length;
-    const variance = inrValues.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / inrValues.length;
-    const standardDeviation = Math.sqrt(variance);
-    const coefficientOfVariation = (standardDeviation / mean) * 100;
-    
-    return {
-      isStable: coefficientOfVariation < 15, // Less than 15% variation considered stable
-      coefficient: coefficientOfVariation
-    };
-  };
-
-  const generateSafetyWarnings = (currentINR, avgINR, entries) => {
-    const warnings = [];
-    
-    if (currentINR > 4.5) {
-      warnings.push({
-        type: 'danger',
-        message: 'INR >4.5: Consider holding warfarin and monitoring closely. Assess bleeding risk.'
-      });
-    }
-    
-    if (currentINR < 1.5) {
-      warnings.push({
-        type: 'warning',
-        message: 'INR <1.5: Inadequate anticoagulation. Consider bridging therapy if high thrombotic risk.'
-      });
-    }
-    
-    if (entries.length >= 3) {
-      const trend = calculateTrend(entries);
-      if (trend.isIncreasing && currentINR > 3.0) {
-        warnings.push({
-          type: 'warning',
-          message: 'Rising INR trend detected. Monitor more frequently.'
-        });
-      }
-    }
-    
-    return warnings;
-  };
-
-  const calculateTrend = (entries) => {
-    if (entries.length < 3) return { isIncreasing: false, slope: 0 };
-    
-    const recentEntries = entries.slice(-3);
-    const inrValues = recentEntries.map(entry => parseFloat(entry.inr));
-    
-    // Simple linear regression to detect trend
-    const n = inrValues.length;
-    const x = Array.from({length: n}, (_, i) => i);
-    const sumX = x.reduce((sum, val) => sum + val, 0);
-    const sumY = inrValues.reduce((sum, val) => sum + val, 0);
-    const sumXY = x.reduce((sum, val, i) => sum + val * inrValues[i], 0);
-    const sumXX = x.reduce((sum, val) => sum + val * val, 0);
-    
-    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-    
-    return {
-      isIncreasing: slope > 0.1,
-      slope: slope
-    };
-  };
-
-  return (
-    <div className="max-w-4xl mx-auto p-6 bg-white">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          Warfarin Dosing Calculator
-        </h1>
-        <p className="text-gray-600">
-          Clinical Decision Support Tool Based on ASH Guidelines
-        </p>
-      </div>
-
-      {/* Target INR Range */}
-      <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-        <h3 className="text-lg font-semibold mb-2">Target INR Range</h3>
-        <div className="flex items-center space-x-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Min:</label>
-            <input
-              type="number"
-              step="0.1"
-              value={targetINR.min}
-              onChange={(e) => setTargetINR({...targetINR, min: parseFloat(e.target.value)})}
-              className="w-20 p-2 border border-gray-300 rounded-md"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Max:</label>
-            <input
-              type="number"
-              step="0.1"
-              value={targetINR.max}
-              onChange={(e) => setTargetINR({...targetINR, max: parseFloat(e.target.value)})}
-              className="w-20 p-2 border border-gray-300 rounded-md"
-            />
-          </div>
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">Warfarin Dosing Calculator</h1>
+            <p class="subtitle">Clinical Decision Support Tool Based on ASH Guidelines</p>
         </div>
-      </div>
 
-      {/* INR and Dose Entry */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-4">
-          INR Values & Corresponding Doses
-          <span className="text-sm text-gray-500 ml-2">
-            (Minimum 3 entries required)
-          </span>
-        </h3>
-        
-        {entries.map((entry, index) => (
-          <div key={entry.id} className="flex items-center space-x-4 mb-3 p-3 bg-gray-50 rounded-lg">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700">Date (optional)</label>
-              <input
-                type="date"
-                value={entry.date}
-                onChange={(e) => updateEntry(entry.id, 'date', e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700">INR</label>
-              <input
-                type="number"
-                step="0.1"
-                placeholder="2.5"
-                value={entry.inr}
-                onChange={(e) => updateEntry(entry.id, 'inr', e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700">Weekly Dose (mg)</label>
-              <input
-                type="number"
-                step="0.5"
-                placeholder="35"
-                value={entry.dose}
-                onChange={(e) => updateEntry(entry.id, 'dose', e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              />
-            </div>
-            {entries.length > 3 && (
-              <button
-                onClick={() => removeEntry(entry.id)}
-                className="p-2 text-red-600 hover:text-red-800"
-              >
-                <Trash2 size={20} />
-              </button>
-            )}
-          </div>
-        ))}
-        
-        {entries.length < 10 && (
-          <button
-            onClick={addEntry}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            <Plus size={20} />
-            <span>Add Entry</span>
-          </button>
-        )}
-      </div>
-
-      {/* Calculate Button */}
-      <div className="mb-6">
-        <button
-          onClick={calculateDoseRecommendation}
-          className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 font-semibold"
-        >
-          <Calculator size={20} />
-          <span>Calculate Dose Recommendation</span>
-        </button>
-      </div>
-
-      {/* Results */}
-      {results && (
-        <div className="mb-6">
-          {results.error ? (
-            <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
-              {results.error}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Safety Warnings */}
-              {results.safetyWarnings.length > 0 && (
-                <div className="space-y-2">
-                  {results.safetyWarnings.map((warning, index) => (
-                    <div key={index} className={`p-4 rounded-md flex items-start space-x-2 ${
-                      warning.type === 'danger' ? 'bg-red-100 border border-red-400 text-red-700' : 
-                      'bg-yellow-100 border border-yellow-400 text-yellow-700'
-                    }`}>
-                      <AlertTriangle size={20} className="mt-0.5" />
-                      <span>{warning.message}</span>
-                    </div>
-                  ))}
+        <!-- Target INR Range -->
+        <div class="section blue-section">
+            <h3 class="section-title">Target INR Range</h3>
+            <div class="target-inr">
+                <div class="input-group">
+                    <label class="label">Min:</label>
+                    <input type="number" step="0.1" id="targetMin" value="2.0" class="input">
                 </div>
-              )}
-
-              {/* Main Recommendation */}
-              <div className="p-6 bg-green-50 border border-green-200 rounded-lg">
-                <h3 className="text-xl font-bold text-green-800 mb-2">
-                  Dose Recommendation
-                </h3>
-                <p className="text-lg font-semibold text-green-700 mb-2">
-                  {results.recommendation}
-                </p>
-                <p className="text-green-600">
-                  <strong>Rationale:</strong> {results.rationale}
-                </p>
-              </div>
-
-              {/* Calculation Details */}
-              <div className="p-6 bg-gray-50 rounded-lg">
-                <h4 className="text-lg font-semibold mb-4 flex items-center space-x-2">
-                  <Info size={20} />
-                  <span>Calculation Details</span>
-                </h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p><strong>Current INR:</strong> {results.currentINR.toFixed(1)}</p>
-                    <p><strong>Average INR:</strong> {results.avgINR.toFixed(1)}</p>
-                    <p><strong>Current Weekly Dose:</strong> {results.currentWeeklyDose} mg</p>
-                    <p><strong>Recommended Weekly Dose:</strong> {results.recommendedWeeklyDose.toFixed(1)} mg</p>
-                  </div>
-                  <div>
-                    <p><strong>Adjustment Factor:</strong> {results.adjustmentFactor.toFixed(2)}</p>
-                    <p><strong>Stability:</strong> {results.stability.isStable ? 'Stable' : 'Variable'}</p>
-                    {results.stability.coefficient && (
-                      <p><strong>Variation:</strong> {results.stability.coefficient.toFixed(1)}%</p>
-                    )}
-                  </div>
+                <div class="input-group">
+                    <label class="label">Max:</label>
+                    <input type="number" step="0.1" id="targetMax" value="3.0" class="input">
                 </div>
-              </div>
-
-              {/* Tablet Breakdown */}
-              <div className="p-6 bg-blue-50 rounded-lg">
-                <h4 className="text-lg font-semibold mb-4">
-                  Recommended Tablet Regimen
-                </h4>
-                <div className="space-y-2">
-                  <p><strong>Daily Dose:</strong> {results.tabletBreakdown.dailyDose} mg</p>
-                  <p><strong>Weekly Dose:</strong> {results.tabletBreakdown.weeklyDose} mg</p>
-                  <p><strong>Tablet Combination:</strong> {results.tabletBreakdown.tablets.join(' + ')} mg daily</p>
-                  {results.tabletBreakdown.error > 0.5 && (
-                    <p className="text-amber-600">
-                      <strong>Note:</strong> Exact dosing requires {results.recommendedWeeklyDose.toFixed(1)} mg/week. 
-                      Tablet combination provides {results.tabletBreakdown.weeklyDose} mg/week 
-                      (difference: {results.tabletBreakdown.error.toFixed(1)} mg/week)
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Methodology */}
-              <div className="p-6 bg-gray-100 rounded-lg">
-                <h4 className="text-lg font-semibold mb-3">Methodology</h4>
-                <div className="text-sm text-gray-700 space-y-2">
-                  <p><strong>Algorithm Based On:</strong> American Society of Hematology (ASH) 2018 Guidelines</p>
-                  <p><strong>Dose Adjustment Criteria:</strong></p>
-                  <ul className="list-disc list-inside ml-4 space-y-1">
-                    <li>INR &lt; 1.5: Increase dose by 20%</li>
-                    <li>INR 1.5-{targetINR.min}: Increase dose by 10%</li>
-                    <li>INR {targetINR.min}-{targetINR.max}: Maintain or fine-tune (±5%)</li>
-                    <li>INR {targetINR.max}-4.0: Decrease dose by 10%</li>
-                    <li>INR &gt; 4.0: Decrease dose by 25%</li>
-                  </ul>
-                  <p><strong>Stability Assessment:</strong> Coefficient of variation &lt; 15% over recent measurements</p>
-                  <p><strong>Safety Monitoring:</strong> Automatic alerts for INR values requiring immediate attention</p>
-                </div>
-              </div>
             </div>
-          )}
         </div>
-      )}
 
-      {/* Disclaimer */}
-      <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <p className="text-sm text-yellow-800">
-          <strong>Clinical Decision Support Tool - Professional Use Only</strong><br />
-          This tool is intended for use by qualified healthcare providers as an aid in clinical decision-making. 
-          All dosing recommendations should be reviewed in the context of individual patient factors, 
-          contraindications, and clinical judgment. This tool does not replace clinical expertise and 
-          should not be used as the sole basis for therapeutic decisions.
-        </p>
-      </div>
+        <!-- INR and Dose Entry -->
+        <div class="section">
+            <h3 class="section-title">
+                INR Values & Corresponding Doses
+                <span class="small-text">(Minimum 3 entries required)</span>
+            </h3>
+            
+            <div id="entries-container">
+                <!-- Entries will be populated by JavaScript -->
+            </div>
+            
+            <button onclick="addEntry()" class="btn btn-primary" id="add-entry-btn">
+                <svg class="icon" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"></path>
+                </svg>
+                Add Entry
+            </button>
+        </div>
+
+        <!-- Calculate Button -->
+        <div class="section">
+            <button onclick="calculateDoseRecommendation()" class="btn btn-success">
+                <svg class="icon" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2a1 1 0 000 2h6a1 1 0 100-2H7zm6 7a1 1 0 011 1v3a1 1 0 11-2 0v-3a1 1 0 011-1zm-3 3a1 1 0 100 2h.01a1 1 0 100-2H10zm-4 1a1 1 0 011-1h.01a1 1 0 110 2H7a1 1 0 01-1-1zm1-4a1 1 0 100 2h.01a1 1 0 100-2H7zm2 0a1 1 0 100 2h.01a1 1 0 100-2H9zm2 0a1 1 0 100 2h.01a1 1 0 100-2H11z" clip-rule="evenodd"></path>
+                </svg>
+                Calculate Dose Recommendation
+            </button>
+        </div>
+
+        <!-- Results -->
+        <div id="results-container" class="hidden">
+            <!-- Results will be populated by JavaScript -->
+        </div>
+
+        <!-- Disclaimer -->
+        <div class="disclaimer">
+            <p class="disclaimer-text">
+                <strong>Clinical Decision Support Tool - Professional Use Only</strong><br>
+                This tool is intended for use by qualified healthcare providers as an aid in clinical decision-making. 
+                All dosing recommendations should be reviewed in the context of individual patient factors, 
+                contraindications, and clinical judgment. This tool does not replace clinical expertise and 
+                should not be used as the sole basis for therapeutic decisions.
+            </p>
+        </div>
     </div>
-  );
-};
 
-export default WarfarinDosingCalculator;
+    <script>
+        // Application State
+        let entries = [
+            { id: 1, inr: '', dose: '', date: '' },
+            { id: 2, inr: '', dose: '', date: '' },
+            { id: 3, inr: '', dose: '', date: '' }
+        ];
+
+        // Warfarin tablet sizes available
+        const tabletSizes = [1, 2, 2.5, 3, 4, 5, 6, 7.5, 10];
+
+        // Initialize the application
+        function init() {
+            renderEntries();
+        }
+
+        function renderEntries() {
+            const container = document.getElementById('entries-container');
+            container.innerHTML = '';
+
+            entries.forEach((entry, index) => {
+                const entryDiv = document.createElement('div');
+                entryDiv.className = 'entry-row';
+                entryDiv.innerHTML = `
+                    <div class="entry-input">
+                        <label class="label">Date (optional)</label>
+                        <input type="date" value="${entry.date}" onchange="updateEntry(${entry.id}, 'date', this.value)" class="wide-input">
+                    </div>
+                    <div class="entry-input">
+                        <label class="label">INR</label>
+                        <input type="number" step="0.1" placeholder="2.5" value="${entry.inr}" onchange="updateEntry(${entry.id}, 'inr', this.value)" class="wide-input">
+                    </div>
+                    <div class="entry-input">
+                        <label class="label">Weekly Dose (mg)</label>
+                        <input type="number" step="0.5" placeholder="35" value="${entry.dose}" onchange="updateEntry(${entry.id}, 'dose', this.value)" class="wide-input">
+                    </div>
+                    ${entries.length > 3 ? `
+                        <button onclick="removeEntry(${entry.id})" class="btn btn-danger">
+                            <svg class="icon" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd"></path>
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                            </svg>
+                        </button>
+                    ` : ''}
+                `;
+                container.appendChild(entryDiv);
+            });
+
+            // Update add button visibility
+            const addBtn = document.getElementById('add-entry-btn');
+            addBtn.style.display = entries.length >= 10 ? 'none' : 'inline-flex';
+        }
+
+        function addEntry() {
+            if (entries.length < 10) {
+                entries.push({
+                    id: Math.max(...entries.map(e => e.id)) + 1,
+                    inr: '',
+                    dose: '',
+                    date: ''
+                });
+                renderEntries();
+            }
+        }
+
+        function removeEntry(id) {
+            if (entries.length > 3) {
+                entries = entries.filter(entry => entry.id !== id);
+                renderEntries();
+            }
+        }
+
+        function updateEntry(id, field, value) {
+            entries = entries.map(entry => 
+                entry.id === id ? { ...entry, [field]: value } : entry
+            );
+        }
+
+        function calculateTabletCombination(weeklyDose) {
+            const dailyDose = weeklyDose / 7;
+            
+            // Find the best combination of tablets
+            const findBestCombination = (targetDose) => {
+                let bestCombination = [];
+                let bestError = Infinity;
+                
+                // Try all combinations up to 3 tablets per day
+                for (let i = 0; i < tabletSizes.length; i++) {
+                    for (let j = i; j < tabletSizes.length; j++) {
+                        for (let k = j; k < tabletSizes.length; k++) {
+                            const combinations = [
+                                [tabletSizes[i]],
+                                [tabletSizes[j]],
+                                [tabletSizes[k]],
+                                [tabletSizes[i], tabletSizes[j]],
+                                [tabletSizes[i], tabletSizes[k]],
+                                [tabletSizes[j], tabletSizes[k]],
+                                [tabletSizes[i], tabletSizes[j], tabletSizes[k]]
+                            ];
+                            
+                            combinations.forEach(combo => {
+                                const comboSum = combo.reduce((sum, size) => sum + size, 0);
+                                const error = Math.abs(comboSum - targetDose);
+                                
+                                if (error < bestError) {
+                                    bestError = error;
+                                    bestCombination = combo;
+                                }
+                            });
+                        }
+                    }
+                }
+                
+                return bestCombination;
+            };
+
+            const combination = findBestCombination(dailyDose);
+            const actualDailyDose = combination.reduce((sum, size) => sum + size, 0);
+            const actualWeeklyDose = actualDailyDose * 7;
+            
+            return {
+                dailyDose: actualDailyDose,
+                weeklyDose: actualWeeklyDose,
+                tablets: combination,
+                error: Math.abs(actualWeeklyDose - weeklyDose)
+            };
+        }
+
+        function calculateStability(entries) {
+            if (entries.length < 3) return { isStable: false, coefficient: null };
+            
+            const inrValues = entries.map(entry => parseFloat(entry.inr));
+            const mean = inrValues.reduce((sum, val) => sum + val, 0) / inrValues.length;
+            const variance = inrValues.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / inrValues.length;
+            const standardDeviation = Math.sqrt(variance);
+            const coefficientOfVariation = (standardDeviation / mean) * 100;
+            
+            return {
+                isStable: coefficientOfVariation < 15,
+                coefficient: coefficientOfVariation
+            };
+        }
+
+        function calculateTrend(entries) {
+            if (entries.length < 3) return { isIncreasing: false, slope: 0 };
+            
+            const recentEntries = entries.slice(-3);
+            const inrValues = recentEntries.map(entry => parseFloat(entry.inr));
+            
+            // Simple linear regression to detect trend
+            const n = inrValues.length;
+            const x = Array.from({length: n}, (_, i) => i);
+            const sumX = x.reduce((sum, val) => sum + val, 0);
+            const sumY = inrValues.reduce((sum, val) => sum + val, 0);
+            const sumXY = x.reduce((sum, val, i) => sum + val * inrValues[i], 0);
+            const sumXX = x.reduce((sum, val) => sum + val * val, 0);
+            
+            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            
+            return {
+                isIncreasing: slope > 0.1,
+                slope: slope
+            };
+        }
+
+        function generateSafetyWarnings(currentINR, avgINR, entries) {
+            const warnings = [];
+            
+            if (currentINR > 4.5) {
+                warnings.push({
+                    type: 'danger',
+                    message: 'INR >4.5: Consider holding warfarin and monitoring closely. Assess bleeding risk.'
+                });
+            }
+            
+            if (currentINR < 1.5) {
+                warnings.push({
+                    type: 'warning',
+                    message: 'INR <1.5: Inadequate anticoagulation. Consider bridging therapy if high thrombotic risk.'
+                });
+            }
+            
+            if (entries.length >= 3) {
+                const trend = calculateTrend(entries);
+                if (trend.isIncreasing && currentINR > 3.0) {
+                    warnings.push({
+                        type: 'warning',
+                        message: 'Rising INR trend detected. Monitor more frequently.'
+                    });
+                }
+            }
+            
+            return warnings;
+        }
+
+        function calculateDoseRecommendation() {
+            const targetMin = parseFloat(document.getElementById('targetMin').value);
+            const targetMax = parseFloat(document.getElementById('targetMax').value);
+            
+            const validEntries = entries.filter(entry => 
+                entry.inr && entry.dose && !isNaN(parseFloat(entry.inr)) && !isNaN(parseFloat(entry.dose))
+            );
+
+            if (validEntries.length < 3) {
+                showResults({ error: 'Please enter at least 3 INR values and corresponding doses.' });
+                return;
+            }
+
+            // Sort entries by date or order
+            const sortedEntries = validEntries.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+            
+            // Get the most recent INR and dose
+            const mostRecentINR = parseFloat(sortedEntries[sortedEntries.length - 1].inr);
+            const currentWeeklyDose = parseFloat(sortedEntries[sortedEntries.length - 1].dose);
+            
+            // Calculate weighted average of recent INRs
+            let weightedSum = 0;
+            let weightSum = 0;
+            
+            sortedEntries.forEach((entry, index) => {
+                const weight = index + 1;
+                weightedSum += parseFloat(entry.inr) * weight;
+                weightSum += weight;
+            });
+            
+            const avgINR = weightedSum / weightSum;
+            
+            // Determine dose adjustment
+            let adjustmentFactor = 1.0;
+            let recommendation = '';
+            let rationale = '';
+            
+            const targetMid = (targetMin + targetMax) / 2;
+            
+            if (mostRecentINR < targetMin) {
+                if (mostRecentINR < 1.5) {
+                    adjustmentFactor = 1.20;
+                    recommendation = 'INCREASE dose by 20%';
+                    rationale = 'INR significantly below target range (<1.5)';
+                } else {
+                    adjustmentFactor = 1.10;
+                    recommendation = 'INCREASE dose by 10%';
+                    rationale = 'INR below target range';
+                }
+            } else if (mostRecentINR > targetMax) {
+                if (mostRecentINR > 4.0) {
+                    adjustmentFactor = 0.75;
+                    recommendation = 'DECREASE dose by 25%';
+                    rationale = 'INR significantly above target range (>4.0)';
+                } else {
+                    adjustmentFactor = 0.90;
+                    recommendation = 'DECREASE dose by 10%';
+                    rationale = 'INR above target range';
+                }
+            } else {
+                const stability = calculateStability(sortedEntries);
+                if (stability.isStable) {
+                    adjustmentFactor = 1.0;
+                    recommendation = 'MAINTAIN current dose';
+                    rationale = 'INR within target range and stable';
+                } else {
+                    if (mostRecentINR < targetMid) {
+                        adjustmentFactor = 1.05;
+                        recommendation = 'INCREASE dose by 5%';
+                        rationale = 'INR in target range but trending low';
+                    } else {
+                        adjustmentFactor = 0.95;
+                        recommendation = 'DECREASE dose by 5%';
+                        rationale = 'INR in target range but trending high';
+                    }
+                }
+            }
+            
+            const newWeeklyDose = currentWeeklyDose * adjustmentFactor;
+            const tabletBreakdown = calculateTabletCombination(newWeeklyDose);
+            
+            showResults({
+                currentINR: mostRecentINR,
+                avgINR: avgINR,
+                currentWeeklyDose: currentWeeklyDose,
+                recommendedWeeklyDose: newWeeklyDose,
+                adjustmentFactor: adjustmentFactor,
+                recommendation: recommendation,
+                rationale: rationale,
+                tabletBreakdown: tabletBreakdown,
+                stability: calculateStability(sortedEntries),
+                safetyWarnings: generateSafetyWarnings(mostRecentINR, avgINR, sortedEntries),
+                targetMin: targetMin,
+                targetMax: targetMax
+            });
+        }
+
+        function showResults(results) {
+            const container = document.getElementById('results-container');
+            container.className = 'section';
+
+            if (results.error) {
+                container.innerHTML = `<div class="alert alert-error">${results.error}</div>`;
+                return;
+            }
+
+            let warningsHtml = '';
+            if (results.safetyWarnings.length > 0) {
+                warningsHtml = results.safetyWarnings.map(warning => `
+                    <div class="alert alert-${warning.type}">
+                        <svg class="icon" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span>${warning.message}</span>
+                    </div>
+                `).join('');
+            }
+
+            container.innerHTML = `
+                ${warningsHtml}
+                
+                <div class="recommendation">
+                    <h3 class="recommendation-title">Dose Recommendation</h3>
+                    <p class="recommendation-text">${results.recommendation}</p>
+                    <p class="recommendation-rationale"><strong>Rationale:</strong> ${results.rationale}</p>
+                </div>
+
+                <div class="details-section">
+                    <h4 class="details-title">
+                        <svg class="icon" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                        </svg>
+                        Calculation Details
+                    </h4>
+                    <div class="details-grid">
+                        <div>
+                            <p><strong>Current INR:</strong> ${results.currentINR.toFixed(1)}</p>
+                            <p><strong>Average INR:</strong> ${results.avgINR.toFixed(1)}</p>
+                            <p><strong>Current Weekly Dose:</strong> ${results.currentWeeklyDose} mg</p>
+                            <p><strong>Recommended Weekly Dose:</strong> ${results.recommendedWeeklyDose.toFixed(1)} mg</p>
+                        </div>
+                        <div>
+                            <p><strong>Adjustment Factor:</strong> ${results.adjustmentFactor.toFixed(2)}</p>
+                            <p><strong>Stability:</strong> ${results.stability.isStable ? 'Stable' : 'Variable'}</p>
+                            ${results.stability.coefficient ? `<p><strong>Variation:</strong> ${results.stability.coefficient.toFixed(1)}%</p>` : ''}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tablet-section">
+                    <h4 class="section-title">Recommended Tablet Regimen</h4>
+                    <div>
+                        <p><strong>Daily Dose:</strong> ${results.tabletBreakdown.dailyDose} mg</p>
+                        <p><strong>Weekly Dose:</strong> ${results.tabletBreakdown.weeklyDose} mg</p>
+                        <p><strong>Tablet Combination:</strong> ${results.tabletBreakdown.tablets.join(' + ')} mg daily</p>
+                        ${results.tabletBreakdown.error > 0.5 ? `
+                            <p style="color: #d97706; margin-top: 0.5rem;">
+                                <strong>Note:</strong> Exact dosing requires ${results.recommendedWeeklyDose.toFixed(1)} mg/week. 
+                                Tablet combination provides ${results.tabletBreakdown.weeklyDose} mg/week 
+                                (difference: ${results.tabletBreakdown.error.toFixed(1)} mg/week)
+                            </p>
+                        ` : ''}
+                    </div>
+                </div>
+
+                <div class="methodology-section">
+                    <h4 class="section-title">Methodology</h4>
+                    <div class="methodology-content">
+                        <p><strong>Algorithm Based On:</strong> American Society of Hematology (ASH) 2018 Guidelines</p>
+                        <p><strong>Dose Adjustment Criteria:</strong></p>
+                        <ul class="methodology-list">
+                            <li>INR &lt; 1.5: Increase dose by 20%</li>
+                            <li>INR 1.5-${results.targetMin}: Increase dose by 10%</li>
+                            <li>INR ${results.targetMin}-${results.targetMax}: Maintain or fine-tune (±5%)</li>
+                            <li>INR ${results.targetMax}-4.0: Decrease dose by 10%</li>
+                            <li>INR &gt; 4.0: Decrease dose by 25%</li>
+                        </ul>
+                        <p><strong>Stability Assessment:</strong> Coefficient of variation &lt; 15% over recent measurements</p>
+                        <p><strong>Safety Monitoring:</strong> Automatic alerts for INR values requiring immediate attention</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Initialize the application when the page loads
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
